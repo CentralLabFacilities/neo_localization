@@ -140,7 +140,7 @@ protected:
 
 		for(size_t i = 0; i < scan->ranges.size(); ++i)
 		{
-			if(scan->ranges[i] <= scan->range_min || scan->ranges[i] >= scan->range_max) {
+			if(scan->ranges[i] <= scan->range_min || scan->ranges[i] >= scan->range_max || std::isinf(scan->ranges[i]) || std::isnan(scan->ranges[i])) {
 				continue;	// no actual measurement
 			}
 
