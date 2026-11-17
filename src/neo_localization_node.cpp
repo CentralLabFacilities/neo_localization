@@ -21,6 +21,7 @@
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_datatypes.h>
+#include <std_srvs/SetBool.h>
 
 #include <mutex>
 #include <thread>
@@ -72,6 +73,8 @@ public:
 		m_node_handle.param("constrain_threshold_yaw", m_constrain_threshold_yaw, 0.2);
 		m_node_handle.param("transform_timeout", m_transform_timeout, 0.2);
 
+		m_srv_enable = m_node_handle.advertiseService("enable_scans", &NeoLocalizationNode::enable_scans_service, this);
+
 		m_sub_scan_topic = m_node_handle.subscribe("/scan", 10, &NeoLocalizationNode::scan_callback, this);
 		m_sub_map_topic = m_node_handle.subscribe("/map", 1, &NeoLocalizationNode::map_callback, this);
 		m_sub_pose_estimate = m_node_handle.subscribe("/initialpose", 1, &NeoLocalizationNode::pose_callback, this);
@@ -96,13 +99,23 @@ public:
 
 protected:
 	/*
+	 * Enable scan subscription
+	 */
+	bool enable_scans_service(std_srvs::SetBool::Request& req, std_srvs::SetBool::Response&)
+	{
+		m_scans_enabled = req.data;
+		return true;
+	}
+
+
+	/*
 	 * Computes localization update for a single laser scan.
 	 */
 	void scan_callback(const sensor_msgs::LaserScan::ConstPtr& scan)
 	{
 		std::lock_guard<std::mutex> lock(m_node_mutex);
 
-		if(!m_map) {
+		if(!m_map || !m_scans_enabled) {
 			return;
 		}
 		m_scan_buffer[scan->header.frame_id] = scan;
@@ -597,10 +610,14 @@ private:
 	ros::Subscriber m_sub_scan_topic;
 	ros::Subscriber m_sub_pose_estimate;
 
+	ros::ServiceServer m_srv_enable;
+
 	ros::Timer m_loc_update_timer;
 
 	tf::TransformListener m_tf;
 	tf::TransformBroadcaster m_tf_broadcaster;
+
+	bool m_scans_enabled = true;
 
 	bool m_broadcast_tf = false;
 	std::string m_base_frame;
